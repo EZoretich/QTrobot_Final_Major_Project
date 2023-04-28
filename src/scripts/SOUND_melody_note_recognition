@@ -1,0 +1,210 @@
+#!/usr/bin/env python
+#File to mimic the interface of command node, so that we dont need robot on to code and test code.
+
+# TO DO --> Add time (rospy.get_time()), add velocity check
+
+# -------------------------- RECOGNIZE NOTES IN SHORT SONG
+# --------------------- IMPORT LIBRARIES
+import librosa
+import librosa.display
+import numpy as np
+from matplotlib import pyplot as plt
+from glob import glob
+import soundfile as sf
+import joblib
+from sklearn.neighbors import KNeighborsClassifier
+import csv
+import time
+
+def plot_wave(file):
+    plt.xlabel("Time")
+    plt.ylabel("Amplitude")
+    #plt.xscale('log')
+    #plt.plot(file*-1, 'g')
+    plt.title("Raw Melody_3 Wave Plot")
+    plt.plot(file, 'g')
+    plt.show()
+
+# Create a Spetrogram
+def spectrogram(note):
+    note_ft = librosa.stft(note)
+    note_db = librosa.amplitude_to_db(np.abs(note_ft), ref = np.max)
+
+    img, ax = plt.subplots(figsize=(10,5))
+    note_spectrogram = librosa.display.specshow(note_db, x_axis='time', y_axis='log', ax = ax)
+    ax.set_title('Spectrogram', fontsize=18)
+    img.colorbar(note_spectrogram, ax=ax, format=f'%0.2f')
+    plt.show()
+
+def find_peaks(raw, note_db):
+    onset_env = librosa.onset.onset_strength(y = raw, sr=sr, S = note_db)
+    peaks = librosa.util.peak_pick(onset_env,pre_max=2, post_max=2, pre_avg=3, post_avg=5, delta=3.0, wait=10)
+    # Detect the onsets in the audio sample
+    #print(peaks)
+    times = librosa.times_like(onset_env, sr=sr, hop_length=512)
+    fig, ax = plt.subplots(nrows=2, sharex=True)
+    D = np.abs(librosa.stft(raw))
+    librosa.display.specshow(librosa.amplitude_to_db(D, ref=np.max),
+                             y_axis='log', x_axis='time', ax=ax[1])
+    ax[0].plot(times, onset_env, alpha=0.8, label='Onset strength')
+    ax[0].vlines(times[peaks], 0,
+                 onset_env.max(), color='r', alpha=0.8,
+                 label='Selected peaks')
+    ax[0].legend(frameon=True, framealpha=0.8)
+    ax[0].label_outer()
+    plt.show()
+
+# -------------------------------- MODEL PATH
+
+# KNN Db Model
+model_path = "/home/ez/catkin_ws/src/tutorial_qt_motors/src/scripts/ML_KNN_dB_Model.joblib"
+
+# ---------------------------------------------------------
+# MELODY 1 # 
+#song = '/home/ez/catkin_ws/src/tutorial_qt_motors/Keys_Recording/Short_Songs/Melody_1.wav'
+
+# MELODY 2 # 
+#song = '/home/ez/catkin_ws/src/tutorial_qt_motors/Keys_Recording/Short_Songs/Melody_2.wav'
+
+# MELODY 3 # 91.66%, all notes detected
+#song = '/home/ez/catkin_ws/src/tutorial_qt_motors/Keys_Recording/Short_Songs/Melody_3.wav'
+
+# MELODY 4 # 100 %, all notes detected
+#song = '/home/ez/catkin_ws/src/tutorial_qt_motors/Keys_Recording/Short_Songs/Melody_4.wav'
+
+# MELODY 5 # 
+song = '/home/ez/catkin_ws/src/tutorial_qt_motors/Keys_Recording/Short_Songs/Melody_5.wav'
+
+
+#----------------
+
+
+#notes = []
+raw, sr = librosa.load(song)
+#plot_wave(raw)
+#spectrogram(raw)
+
+#spectral_flux = np.abs(librosa.onset.onset_strength(S=fourier))
+#onsets = librosa.onset.onset_detect(onset_envelope=spectral_flux, sr=sr)
+#plot_wave(raw) #--------------
+#print(len(raw))
+#print(type(raw))
+
+# -------------------------------------------------------- SPECTROGRAM AND PEAK OF SONG
+note_ft = librosa.stft(raw)
+note_db = librosa.amplitude_to_db(np.abs(note_ft), ref = np.max)
+
+#find_peaks(raw, note_db)
+
+# Detect Onset of Audio Sample
+onset_env = librosa.onset.onset_strength(y = raw, sr=sr, S = note_db)
+peaks = librosa.util.peak_pick(onset_env,pre_max=2, post_max=2, pre_avg=3, post_avg=5, delta=3.0, wait=10)
+
+
+#print(len(raw)) #340452
+#print(peaks) #[ 45 119 192 264 337 406 478 554]
+#print(len(onset_env)) #665
+trim_samples = []
+ml_audio_data = []
+peaks_raw = []
+
+env_len = len(onset_env)
+raw_len = len(raw)
+for p in peaks:
+    prop = round((p*raw_len)/env_len) - 1000 # - 1000 because without, it trims out part of the next note/begin of same note
+    peaks_raw.append(prop)
+print(peaks_raw)
+
+for i in range(len(peaks_raw) - 1):
+    start = peaks_raw[i]
+    end = peaks_raw[i+1]
+    print(start, end)
+    segment = raw[start:end]
+    #plot_wave(segment)
+    trim_samples.append(segment)
+
+# Add the last segment (from the last peak to the end of the array)
+trim_samples.append(raw[peaks_raw[-1]:])
+#plot_wave(raw)
+
+#for trim in trim_samples:
+    #plot_wave(trim)
+
+for trimmed in trim_samples:
+    #plot_wave(trimmed)
+    #spectrogram(trimmed)
+    ft = librosa.stft(trimmed) # Short-time Fourier transform
+    ft_db = librosa.amplitude_to_db(np.abs(ft), ref = np.max)
+    ft_average = np.mean(np.abs(ft_db), axis = 1)
+    ml_audio_data.append(ft_average)
+    #plot_wave(ft_average)
+
+
+ml_audio_data = np.array(ml_audio_data)
+
+
+# MELODY 1
+#labels = ["F", "B", "D", "G", "C_First_Inv", "C_Root", "C_Root", "E", "A", "B", "E"]
+
+# MELODY 2
+#labels = ["A", "F", "G", "D", "E", "F", "D", "E", "F", "C_First_Inv", "B", "C_First_Inv", "G", "C_Root", "F", "A", "E", "B", "G", "D", "E", "A", "E"]
+
+# MELODY 3
+#labels = ["F","C_Root","B","A","E","C_First_Inv","G","C_Root","D","G","C_Root","F"]
+
+# MELODY 4
+#labels = ["F","G","G","G","B","D","F","A","C_First_Inv","D","E","G","A","B","F","A","C_Root","E","F","A","F","E","D"]
+
+# MELODY 5
+labels = ["", "C_Root", "A", "F", "E", "B", "G", "C_First_Inv", "A", "F", "D", "", "B"]
+
+
+
+X_test = ml_audio_data
+y_test = labels
+
+#model = KNeighborsClassifier(3)
+# Loading the Machine Learning trained model, with joblib
+load_model = joblib.load(model_path)
+
+prediction = load_model.predict(X_test)
+#Print out theaccuracy percentage (0-1)
+score = load_model.score(X_test, y_test)
+print("-- Accuracy:     ", score*100, '%')
+
+for h in range(len(prediction)):
+    print(prediction[h], y_test[h])
+
+print("-- PROCESS TIME CPU:    ", time.process_time())
+# -------------------------------------------------------------------------------------
+
+'''
+# ------------------- PLOT ALL NOTES RECOGNIZED
+plot_wave(raw)
+x = np.linspace(0, 10, 100)
+
+# Define the number of rows and columns of subplots
+num_rows = 3 # 3
+num_cols = 4 # 4
+
+# Create a figure with the desired number of subplots
+fig, axs = plt.subplots(num_rows, num_cols)
+
+# Flatten the axs array to simplify indexing
+axs = axs.flatten()
+
+# Iterate through the subplots and plot the data
+for i in range(num_rows * num_cols):
+    # Check if there is more data to plot
+    if i < len(trim_samples):
+        axs[i].plot(trim_samples[i])
+        axs[i].set_title('Note {}'.format(i+1))
+    # If there is no more data to plot, remove the subplot
+    else:
+        fig.delaxes(axs[i])
+
+# Adjust the spacing between subplots
+fig.tight_layout()
+
+# Show the plot
+plt.show()'''

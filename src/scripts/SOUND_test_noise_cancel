@@ -1,0 +1,85 @@
+#!/usr/bin/env python
+#File to mimic the interface of command node, so that we dont need robot on to code and test code.
+
+# --------------------------------------- TO LOAD MODEL
+# ------- ~~ For another script ~~
+
+# --------------------- IMPORT LIBRARIES
+import librosa
+import librosa.display
+import numpy as np
+from matplotlib import pyplot as plt
+from glob import glob
+import joblib
+from sklearn.neighbors import KNeighborsClassifier
+import csv
+import time
+
+
+audio_files = sorted(glob('/home/ez/catkin_ws/src/tutorial_qt_motors/Keys_Recording/audio_test_noisecanc/*.wav'))
+print(audio_files)
+
+model_path = '/home/ez/catkin_ws/src/tutorial_qt_motors/src/scripts/ML_KNN_dB_Model.joblib'
+
+t0 = time.time()
+
+
+raw_audios = []
+ml_audio_data = []
+
+for sample in audio_files:
+    raw, sr = librosa.load(sample)
+    raw_audios.append(raw)
+
+for uncompressed in raw_audios:
+    note_ft = librosa.stft(uncompressed) # Short-time Fourier transform
+    note_db = librosa.amplitude_to_db(np.abs(note_ft), ref = np.max)
+    ft_avg = np.mean(np.abs(note_db), axis = 1) #(np.abs(note_db[512:912]), axis = 1)
+    ml_audio_data.append(ft_avg)
+    #plot_wave(ft_avg)
+
+    #plot_wave(ft_avg)
+    #spectrogram(uncompressed)
+
+
+ml_audio_data = np.array(ml_audio_data)
+#print(ml_audio_data)
+
+#ml_audio_data = []
+xylophone_keys = ["A", "B", "C_First_Inv", "C_Root", "D", "E", "F", "G"]
+keys_labels = []
+for element in xylophone_keys:
+    for x in range(3):
+        keys_labels.append(element)
+#print(keys_labels)
+
+#print(keys_labels)
+X = ml_audio_data
+y = keys_labels
+#print(y)
+#print(X)
+#print(X.shape)
+# Split features and labels into training and testing sets.
+# ±86% of cards(features) will be used for training, and teh remaining 14% will be used for testing
+# train_test_split() argument 'shuffle' has been set to True, allowing a random selection of card
+# to be used each time for training and testing. This will create a non-bias model.
+#X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.125, shuffle=True)
+
+X_test = X
+y_test = y
+#model = KNeighborsClassifier(3)
+#model = GaussianNB()
+
+# Loading the Machine Learning trained model, with joblib
+load_model = joblib.load(model_path)
+
+prediction = load_model.predict(X_test)
+#Print out theaccuracy percentage (0-1)
+score = load_model.score(X_test, y_test)
+print("-- Accuracy:     ", score*100, '%')
+#print(load_model.score(X_test, y_test))
+#prediction = load_model.predict(X_test)
+print("---- PREDICTION TIME:    ", time.time()-t0)
+print("-- PROCESS TIME CPU:    ", time.process_time())
+for h in range(len(prediction)):
+    print(prediction[h], y_test[h])

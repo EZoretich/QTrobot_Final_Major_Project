@@ -1,0 +1,58 @@
+#!/usr/bin/env python
+#File to mimic the interface of command node, so that we dont need robot on to code and test code.
+
+# TO DO --> Add time (rospy.get_time()), add velocity check
+
+#------------------------------------------------------------------------ IMPORTS
+
+# --------------------------------------- ML FROM MIC, NO TRIM
+
+# --------------------- IMPORT LIBRARIES
+import librosa
+import librosa.display
+import pyaudio
+import numpy as np
+from matplotlib import pyplot as plt
+from glob import glob
+import wave
+from sklearn.neighbors import KNeighborsClassifier
+import csv
+import joblib
+
+#model_path = 'C:/Users/elena/Desktop/University Stuff/3rd Year/Final Major Project/Code/Sound_Recognition/ML_model_samples.joblib'
+#load_model = joblib.load(model_path)
+def record_melody(rec_length):
+	CHUNK = 1024
+	FORMAT = pyaudio.paInt16
+	CHANNELS = 1
+	RATE = 22050 #44100
+
+	p =pyaudio.PyAudio()
+
+	stream = p.open(format=FORMAT,
+		        channels=CHANNELS,
+		        rate=RATE,
+		        input=True,
+		        frames_per_buffer=CHUNK)
+
+	print("Start Recording ...")
+	frames = []
+	seconds = rec_length
+	for i in range(0, int(RATE/ CHUNK * seconds)):
+	    data = stream.read(CHUNK)
+	    frames.append(data)
+
+	print("Recording Stopped.")
+	stream.stop_stream()
+	stream.close()
+	p.terminate()
+
+
+	wf = wave.open("User_Melody.wav", 'wb')
+	wf.setnchannels(CHANNELS)
+	wf.setsampwidth(p.get_sample_size(FORMAT))
+	wf.setframerate(RATE)
+	wf.writeframes(b''.join(frames))
+	wf.close()
+
+record_melody(5)

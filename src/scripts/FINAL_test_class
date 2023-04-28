@@ -1,0 +1,357 @@
+#!/usr/bin/env python
+#File to mimic the interface of command node, so that we dont need robot on to code and test code.
+
+# TO DO --> Add time (rospy.get_time()), add velocity check
+
+#------------------------------------------------------------------------ IMPORTS
+
+import rospy
+import time
+from musi_care.srv import qt_command
+#from qt_robot_interface.srv import * #so we can use the qt service srvs
+#from qt_gesture_controller.srv import * # #so we can use the service srv "gesture_play" 
+from qt_motors_controller.srv import *
+from std_msgs.msg import String #so we can become a publisher and publish a string to the QT node that handles tts.
+from std_msgs.msg import Bool
+from sensor_msgs.msg import JointState
+rospy.init_node('QT_Xylophone')
+
+# ---------------------------------------------------------------------- VARIABLES
+
+right_shoulder_pitch_pos = 0
+right_shoulder_roll_pos = 0
+right_elbow_roll_pos = 0
+left_shoulder_pitch_pos = 0
+left_shoulder_roll_pos = 0
+left_elbow_roll_pos = 0
+
+# --------------------------------------------------------------------- FUNCTIONS
+
+# ---------- To obtain position of joints
+
+def state_callback(msg):
+    global right_shoulder_pitch_pos
+    global right_shoulder_roll_pos
+    global right_elbow_roll_pos
+    global left_shoulder_pitch_pos
+    global left_shoulder_roll_pos
+    global left_elbow_roll_pos
+    
+    # Right Arm Joints
+    right_shoulder_pitch_pos = msg.position[msg.name.index("RightShoulderPitch")]
+    right_shoulder_roll_pos = msg.position[msg.name.index("RightShoulderRoll")]
+    right_elbow_roll_pos = msg.position[msg.name.index("RightElbowRoll")]
+    
+    # Left Arm Joints
+    left_shoulder_pitch_pos = msg.position[msg.name.index("LeftShoulderPitch")]
+    left_shoulder_roll_pos = msg.position[msg.name.index("LeftShoulderRoll")]
+    left_elbow_roll_pos = msg.position[msg.name.index("LeftElbowRoll")]
+    
+
+
+rospy.Subscriber('/qt_robot/joints/state', JointState, state_callback)
+
+# ---------- To check if motors reached desired position
+        
+def check_pos(position, target):
+    my_target = target.replace('"', "")
+    my_target = my_target.replace(',', "")
+    my_target = my_target.replace('[', "")
+    my_target = my_target.replace(']', "")
+    my_target = my_target.split()
+    s_pitch, s_roll, e_roll = float(my_target[0]), float(my_target[1]), float(my_target[1])
+    target_reached = False
+    while not target_reached:
+        target_reached = (round(s_pitch, 2) == round(position[0], 2)) and (round(s_roll, 2) == round(position[1], 2)) and (round(e_roll, 2) == round(position[2], 2))
+    return True
+    
+# ---------- To move arms closer to the xylophone (to avoid hitting the holder with the mallets)
+
+# ---------- To change the speed of the motors
+
+def change_mot_speed(speed_percent):
+	action_type = "velocity"
+	action_content = speed_percent
+	command_blocking = False
+
+	rospy.wait_for_service('/qt_command_service')
+	command_controller = rospy.ServiceProxy('/qt_command_service', qt_command)
+	#command_complete = command_controller(action_type, action_content, command_blocking)
+
+	#print(command_complete)
+
+
+def get_ready(arm, move_1, move_2, move_3):
+
+	print("----- GET READY -----")
+	start = rospy.get_time() # ---- Start Timing
+	action_type = arm
+	action_content = move_1
+	command_blocking = False
+
+	rospy.wait_for_service('/qt_command_service')
+	command_controller = rospy.ServiceProxy('/qt_command_service', qt_command)
+	command_complete = command_controller(action_type, action_content, command_blocking)
+	rospy.sleep(0.1)
+
+	#print(command_complete)
+	finish = rospy.get_time() # ----- Stop Timing
+	elapsed = round((finish - start), 3) # ----- Calculate Time Elapsed
+	#print(elapsed, "   Sec.")
+	#print("----------", action_type, "----------")
+	#print("DESIRED POS:	", action_content)
+	if action_type == "right_arm":
+	    actual_pos = [right_shoulder_pitch_pos, right_shoulder_roll_pos, right_elbow_roll_pos]
+	    '''ac_list = action_content.replace('"', "")
+	    ac_list = ac_list.replace(',', "")
+	    ac_list = ac_list.replace('[', "")
+	    ac_list = ac_list.replace(']', "")
+	    print("modified: ", ac_list)
+	    ac_list = ac_list.split()
+	    #print(ac_list)
+	    #print(type(ac_list))
+	    #print(ac_list[0])
+	    #print(type(ac_list[0]))'''
+	    #check_pos(actual_pos,  action_content)
+	    #print("REAL POS:	", actual_pos)
+	else:
+	    actual_pos = [left_shoulder_pitch_pos, left_shoulder_roll_pos, left_elbow_roll_pos]
+	    print("REAL POS:	", actual_pos)
+	    
+	#rospy.sleep(0.1)
+	
+	# ------------------------------------------------------------------------
+	start = rospy.get_time() # ----- Start Timing
+	action_type = arm
+	action_content = move_2
+	command_blocking = False
+
+	rospy.wait_for_service('/qt_command_service')
+	command_controller = rospy.ServiceProxy('/qt_command_service', qt_command)
+	command_complete = command_controller(action_type, action_content, command_blocking)
+	rospy.sleep(0.1)
+	print(command_complete)
+	finish = rospy.get_time() # ----- Stop Timing
+	elapsed = round((finish - start), 3) # ----- Calculate Time Elapsed
+	print(elapsed, "   Sec.")
+	print("----------", action_type, "----------")
+	print("DESIRED POS:	", action_content)
+	if action_type == "right_arm":
+	    actual_pos = [right_shoulder_pitch_pos, right_shoulder_roll_pos, right_elbow_roll_pos]
+	    print("REAL POS:	", actual_pos)
+	else:
+	    actual_pos = [left_shoulder_pitch_pos, left_shoulder_roll_pos, left_elbow_roll_pos]
+	    print("REAL POS:	", actual_pos)
+	    
+	#rospy.sleep(0.1)
+	
+	# ------------------------------------------------------------------------
+	start = rospy.get_time() # ----- Start Timing
+	action_type = arm
+	action_content = move_3
+	command_blocking = False
+
+	rospy.wait_for_service('/qt_command_service')
+	command_controller = rospy.ServiceProxy('/qt_command_service', qt_command)
+	command_complete = command_controller(action_type, action_content, command_blocking)
+	rospy.sleep(0.1)
+	print(command_complete)
+	finish = rospy.get_time() # ----- Stop Timing
+	elapsed = round((finish - start), 3) # ----- Calculate Time Elapsed
+	print(elapsed, "   Sec.")
+	print("----------", action_type, "----------")
+	print("DESIRED POS:	", action_content)
+	if action_type == "right_arm":
+	    actual_pos = [right_shoulder_pitch_pos, right_shoulder_roll_pos, right_elbow_roll_pos]
+	    print("REAL POS:	", actual_pos)
+	else:
+	    actual_pos = [left_shoulder_pitch_pos, left_shoulder_roll_pos, left_elbow_roll_pos]
+	    print("REAL POS:	", actual_pos)
+	    
+	#rospy.sleep(3)
+
+# ---------- Function to play a note (now same function for right/left arm)
+
+def play_note(arm, key, offset):
+	
+	print("----- PLAY NOTE -----")
+	actual_pos = [right_shoulder_pitch_pos, right_shoulder_roll_pos, right_elbow_roll_pos]
+        # ---------- OFFSET
+	start = rospy.get_time() # ----- Start Timing
+	action_type = arm
+	action_content = offset
+	command_blocking = False
+	print(key)
+
+	rospy.wait_for_service('/qt_command_service')
+	command_controller = rospy.ServiceProxy('/qt_command_service', qt_command)
+	command_complete = command_controller(action_type, action_content, command_blocking)
+	rospy.sleep(0.1)
+	#check_pos(actual_pos,  action_content)
+	print(command_complete)
+	finish = rospy.get_time() # ----- Stop Timing
+	elapsed = round((finish - start), 3) # ----- Calculate Time Elapsed
+	print(elapsed, "   Sec.")
+	print("----------", action_type, "----------")
+	print("DESIRED POS:	", action_content)
+	if action_type == "right_arm":
+	    actual_pos = [right_shoulder_pitch_pos, right_shoulder_roll_pos, right_elbow_roll_pos]
+	    print("REAL POS:	", actual_pos)
+	    #print("RIGHT_S_PITCH:	", right_shoulder_pitch_pos)
+	    #print("RIGHT_S_ROLL:	", right_shoulder_roll_pos)
+	    #print("RIGHT_E_ROLL:	", right_elbow_roll_pos)
+	else:
+	    actual_pos = [left_shoulder_pitch_pos, left_shoulder_roll_pos, left_elbow_roll_pos]
+	    print("REAL POS:	", actual_pos)
+	    #print("LEFT_S_PITCH:	", left_shoulder_pitch_pos)
+	    #print("LEFT_S_ROLL:	", left_shoulder_roll_pos)
+	    #print("LEFT_E_ROLL:	", left_elbow_roll_pos)
+	    
+	#rospy.sleep(2)
+	
+	# ---------- NOTE
+	start = rospy.get_time() # ----- Start Timing
+	action_type = arm
+	action_content = key
+	command_blocking = False
+
+	rospy.wait_for_service('/qt_command_service')
+	command_controller = rospy.ServiceProxy('/qt_command_service', qt_command)
+	command_complete = command_controller(action_type, action_content, command_blocking)
+	rospy.sleep(0.1)
+	#check_pos(actual_pos,  action_content)
+	print(command_complete)
+	finish = rospy.get_time() # ----- Stop Timing
+	elapsed = round((finish - start), 3) # ----- Calculate Time Elapsed
+	print(elapsed, "   Sec.")
+	print("----------", action_type, "----------")
+	print("DESIRED POS:	", action_content)
+	if action_type == "right_arm":
+	    actual_pos = [right_shoulder_pitch_pos, right_shoulder_roll_pos, right_elbow_roll_pos]
+	    print("REAL POS:	", actual_pos)
+	else:
+	    actual_pos = [left_shoulder_pitch_pos, left_shoulder_roll_pos, left_elbow_roll_pos]
+	    print("REAL POS:	", actual_pos)
+	
+	#rospy.sleep(2)
+	# ---------- OFFSET 
+	start = rospy.get_time() # ----- Start Timing
+	action_type = arm
+	action_content = offset
+	command_blocking = False
+
+	rospy.wait_for_service('/qt_command_service')
+	command_controller = rospy.ServiceProxy('/qt_command_service', qt_command)
+	command_complete = command_controller(action_type, action_content, command_blocking)
+	rospy.sleep(0.1)
+        
+	#check_pos(actual_pos,  action_content)
+	#check_pos(actual_pos, offset)
+	finish = rospy.get_time() # ----- Stop Timing
+	elapsed = round((finish - start), 3) # ----- Calculate Time Elapsed
+	print(elapsed, "   Sec.")
+	print(command_complete)
+	print("----------", action_type, "----------")
+	print("DESIRED POS:	", action_content)
+	if action_type == "right_arm":
+	    actual_pos = [right_shoulder_pitch_pos, right_shoulder_roll_pos, right_elbow_roll_pos]
+	    print("REAL POS:	", actual_pos)
+	else:
+	    actual_pos = [left_shoulder_pitch_pos, left_shoulder_roll_pos, left_elbow_roll_pos]
+	    print("REAL POS:	", actual_pos)
+	    
+	#rospy.sleep(2)
+
+# ----- home to test
+def go_home(arm, pose):
+	start = rospy.get_time() # ----- Start Timing
+	action_type = arm
+	action_content = pose
+	command_blocking = False
+
+	rospy.wait_for_service('/qt_command_service')
+	command_controller = rospy.ServiceProxy('/qt_command_service', qt_command)
+	command_complete = command_controller(action_type, action_content, command_blocking)
+	rospy.sleep(0.1)
+	print(command_complete)
+	finish = rospy.get_time() # ----- Stop Timing
+	elapsed = round((finish - start), 3) # ----- Calculate Time Elapsed
+	print(elapsed, "   Sec.")
+	print("----------", action_type, "----------")
+	print("DESIRED POS:	", action_content)
+	if action_type == "right_arm":
+	    actual_pos = [right_shoulder_pitch_pos, right_shoulder_roll_pos, right_elbow_roll_pos]
+	    print("REAL POS:	", actual_pos)
+	else:
+	    actual_pos = [left_shoulder_pitch_pos, left_shoulder_roll_pos, left_elbow_roll_pos]
+	    print("REAL POS:	", actual_pos)
+
+
+#---------------------------------------- ANGLES READNG TO HIT KEYS
+
+Home = "[0, 0, 0]" #[-87.0, -86.30000305175781, -7.400000095367432]
+
+
+#---------------------------------------- RIGHT ARM ----------------------------------------
+# ------------------- Sending right arm to 'Get Ready' position
+r_pose1 = "[-81.0999984741211, -16.600000381469727, -34.5]"
+
+r_pose2 = "[35.5, -12.0, -34.5]"
+
+r_pose3 = "[29.899999618530273, -48.20000076293945, -35.20000076293945]"
+# ------------------------
+
+offset_C_FI = "[17.099999904632568, -43.0, -56.0]"
+C_FI = "[7.099999904632568, -43.0, -56.0]"
+
+offset_B = "[17.099999904632568, -53.400001525878906, -50.79999923706055]"
+B = "[7.099999904632568, -53.400001525878906, -50.79999923706055]"
+
+offset_A = "[16.800000190734863, -66.0999984741211, -42.70000076293945]"
+A = "[6.800000190734863, -66.0999984741211, -42.70000076293945]"
+
+offset_G = "[16.800000190734863, -78.80000305175781, -33.900001525878906]"
+G = "[6.800000190734863, -78.80000305175781, -33.900001525878906]"
+
+# ---------------------------------------- LEFT ARM ----------------------------------------
+# ------------------- Sending left arm to 'Get Ready' position
+l_pose1 = "[81.0999984741211, -16.600000381469727, -34.5]"
+
+l_pose2 = "[-35.5, -12.0, -34.5]"
+
+l_pose3 = "[-29.899999618530273, -48.20000076293945, -35.20000076293945]"
+# ------------------------
+
+offset_C_R = "[-21.699999809265137, -45.599998474121094, -48.900001525878906]"
+C_R = "[-11.699999809265137, -45.599998474121094, -48.900001525878906]"
+offset_D = "[-21.699999809265137, -52.099998474121094, -48.900001525878906]"
+D = "[-11.699999809265137, -52.099998474121094, -48.900001525878906]"
+offset_E = "[-21.399999618530273, -63.79999923706055, -42.0]"
+E = "[-11.399999618530273, -63.79999923706055, -42.0]"
+offset_F = "[-21.0, -74.30000305175781, -37.400001525878906]"
+F = "[-11.0, -74.30000305175781, -37.400001525878906]"
+
+#--------------------------------------------------------------------------------
+#change_mot_speed("100")
+
+#get_ready("right_arm", r_pose1, r_pose2, r_pose3)
+#get_ready("left_arm",  l_pose1, l_pose2, l_pose3)
+
+play_note("right_arm", C_FI, offset_C_FI)
+
+#start = rospy.get_time()
+play_note("left_arm", C_R, offset_C_R)
+play_note("left_arm", D, offset_D)
+play_note("left_arm", E, offset_E)
+play_note("left_arm", F, offset_F)
+#finish = rospy.get_time()
+#elapsed = round((finish - start), 3)
+#print("TIME TO PLAY ALL KEYS:    ", elapsed, "   Sec.")
+
+
+'''
+variable_name = f'{C_R=}'.split('=')[0]
+offset = "offset_"+ variable_name
+print(offset)
+'''
+

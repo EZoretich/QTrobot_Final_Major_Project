@@ -1,0 +1,492 @@
+#!/usr/bin/env python
+#File to mimic the interface of command node, so that we dont need robot on to code and test code.
+
+# TO DO --> Add time (rospy.get_time()), add velocity check
+
+#------------------------------------------------------------------------ IMPORTS
+
+import rospy
+import time
+#from musi_care.srv import qt_command
+#from qt_robot_interface.srv import * #so we can use the qt service srvs
+#from qt_gesture_controller.srv import * # #so we can use the service srv "gesture_play" 
+#from qt_motors_controller.srv import *
+#from std_msgs.msg import String #so we can become a publisher and publish a string to the QT node that handles tts.
+#from std_msgs.msg import Bool
+#from sensor_msgs.msg import JointState
+import librosa
+import librosa.display
+import pyaudio
+import wave
+import numpy as np
+from matplotlib import pyplot as plt
+from glob import glob
+import soundfile as sf
+import joblib
+from sklearn.neighbors import KNeighborsClassifier
+import csv
+#rospy.init_node('QT_Xylophone')
+
+# ---------------------------------------------------------------------- VARIABLES
+'''
+right_shoulder_pitch_pos = 0
+right_shoulder_roll_pos = 0
+right_elbow_roll_pos = 0
+left_shoulder_pitch_pos = 0
+left_shoulder_roll_pos = 0
+left_elbow_roll_pos = 0
+
+# --------------------------------------------------------------------- FUNCTIONS
+
+# ---------- To obtain position of joints
+
+def state_callback(msg):
+    global r_s_pitch_pos
+    global r_s_roll_pos
+    global r_e_roll_pos
+    global l_s_pitch_pos
+    global l_s_roll_pos
+    global l_e_roll_pos
+    
+    # Right Arm Joints
+    r_s_pitch_pos = msg.position[msg.name.index("RightShoulderPitch")]
+    r_s_roll_pos = msg.position[msg.name.index("RightShoulderRoll")]
+    r_e_roll_pos = msg.position[msg.name.index("RightElbowRoll")]
+    
+    # Left Arm Joints
+    l_s_pitch_pos = msg.position[msg.name.index("LeftShoulderPitch")]
+    l_s_roll_pos = msg.position[msg.name.index("LeftShoulderRoll")]
+    l_e_roll_pos = msg.position[msg.name.index("LeftElbowRoll")]
+    
+
+
+rospy.Subscriber('/qt_robot/joints/state', JointState, state_callback)
+
+# ---------- To move arms closer to the xylophone (to avoid hitting the holder with the mallets)
+
+# ---------- To change the speed of the motors
+
+def change_mot_speed(speed_percent):
+	action_type = "velocity"
+	action_content = speed_percent
+	command_blocking = False
+
+	rospy.wait_for_service('/qt_command_service')
+	command_controller = rospy.ServiceProxy('/qt_command_service', qt_command)
+	#command_complete = command_controller(action_type, action_content, command_blocking)
+
+	#print(command_complete)
+
+
+def get_ready(arm, move_1, move_2, move_3):
+
+	print("----- GET READY -----")
+	start = rospy.get_time() # ---- Start Timing
+	action_type = arm
+	action_content = move_1
+	command_blocking = False
+
+	rospy.wait_for_service('/qt_command_service')
+	command_controller = rospy.ServiceProxy('/qt_command_service', qt_command)
+	command_complete = command_controller(action_type, action_content, command_blocking)
+	rospy.sleep(0.1)
+
+	print(command_complete)
+	finish = rospy.get_time() # ----- Stop Timing
+	elapsed = round((finish - start), 3) # ----- Calculate Time Elapsed
+	print(elapsed, "   Sec.")
+	print("----------", action_type, "----------")
+	print("DESIRED POS:	", action_content)
+	if action_type == "right_arm":
+	    actual_pos = [r_s_pitch_pos, r_s_roll_pos, r_e_roll_pos]
+	    print("REAL POS:	", actual_pos)
+	else:
+	    actual_pos = [l_s_pitch_pos, l_s_roll_pos, l_e_roll_pos]
+	    print("REAL POS:	", actual_pos)
+	    
+	#rospy.sleep(0.1)
+	
+	# ------------------------------------------------------------------------
+	start = rospy.get_time() # ----- Start Timing
+	action_type = arm
+	action_content = move_2
+	command_blocking = False
+
+	rospy.wait_for_service('/qt_command_service')
+	command_controller = rospy.ServiceProxy('/qt_command_service', qt_command)
+	command_complete = command_controller(action_type, action_content, command_blocking)
+	rospy.sleep(0.1)
+	print(command_complete)
+	finish = rospy.get_time() # ----- Stop Timing
+	elapsed = round((finish - start), 3) # ----- Calculate Time Elapsed
+	print(elapsed, "   Sec.")
+	print("----------", action_type, "----------")
+	print("DESIRED POS:	", action_content)
+	if action_type == "right_arm":
+	    actual_pos = [r_s_pitch_pos, r_s_roll_pos, r_e_roll_pos]
+	    print("REAL POS:	", actual_pos)
+	else:
+	    actual_pos = [l_s_pitch_pos, l_s_roll_pos, l_e_roll_pos]
+	    print("REAL POS:	", actual_pos)
+	    
+	#rospy.sleep(0.1)
+	
+	# ------------------------------------------------------------------------
+	start = rospy.get_time() # ----- Start Timing
+	action_type = arm
+	action_content = move_3
+	command_blocking = False
+
+	rospy.wait_for_service('/qt_command_service')
+	command_controller = rospy.ServiceProxy('/qt_command_service', qt_command)
+	command_complete = command_controller(action_type, action_content, command_blocking)
+	rospy.sleep(0.1)
+	print(command_complete)
+	finish = rospy.get_time() # ----- Stop Timing
+	elapsed = round((finish - start), 3) # ----- Calculate Time Elapsed
+	print(elapsed, "   Sec.")
+	print("----------", action_type, "----------")
+	print("DESIRED POS:	", action_content)
+	if action_type == "right_arm":
+	    actual_pos = [r_s_pitch_pos, r_s_roll_pos, r_e_roll_pos]
+	    print("REAL POS:	", actual_pos)
+	else:
+	    actual_pos = [l_s_pitch_pos, l_s_roll_pos, l_e_roll_pos]
+	    print("REAL POS:	", actual_pos)
+	    
+	#rospy.sleep(3)
+
+# ---------- Function to play a note (now same function for right/left arm)
+
+def play_note(arm, key, offset):
+	
+	print("----- PLAY NOTE -----")
+	actual_pos = [right_shoulder_pitch_pos, right_shoulder_roll_pos, right_elbow_roll_pos]
+        # ---------- OFFSET
+	start = rospy.get_time() # ----- Start Timing
+	action_type = arm
+	action_content = offset
+	command_blocking = False
+	print(key)
+
+	rospy.wait_for_service('/qt_command_service')
+	command_controller = rospy.ServiceProxy('/qt_command_service', qt_command)
+	command_complete = command_controller(action_type, action_content, command_blocking)
+	rospy.sleep(0.1)
+	#check_pos(actual_pos,  action_content)
+	print(command_complete)
+	finish = rospy.get_time() # ----- Stop Timing
+	elapsed = round((finish - start), 3) # ----- Calculate Time Elapsed
+	print(elapsed, "   Sec.")
+	print("----------", action_type, "----------")
+	print("DESIRED POS:	", action_content)
+	if action_type == "right_arm":
+	    actual_pos = [right_shoulder_pitch_pos, right_shoulder_roll_pos, right_elbow_roll_pos]
+	    print("REAL POS:	", actual_pos)
+	    #print("RIGHT_S_PITCH:	", right_shoulder_pitch_pos)
+	    #print("RIGHT_S_ROLL:	", right_shoulder_roll_pos)
+	    #print("RIGHT_E_ROLL:	", right_elbow_roll_pos)
+	else:
+	    actual_pos = [left_shoulder_pitch_pos, left_shoulder_roll_pos, left_elbow_roll_pos]
+	    print("REAL POS:	", actual_pos)
+	    #print("LEFT_S_PITCH:	", left_shoulder_pitch_pos)
+	    #print("LEFT_S_ROLL:	", left_shoulder_roll_pos)
+	    #print("LEFT_E_ROLL:	", left_elbow_roll_pos)
+	    
+	#rospy.sleep(2)
+	
+	# ---------- NOTE
+	start = rospy.get_time() # ----- Start Timing
+	action_type = arm
+	action_content = key
+	command_blocking = False
+
+	rospy.wait_for_service('/qt_command_service')
+	command_controller = rospy.ServiceProxy('/qt_command_service', qt_command)
+	command_complete = command_controller(action_type, action_content, command_blocking)
+	rospy.sleep(0.1)
+	#check_pos(actual_pos,  action_content)
+	print(command_complete)
+	finish = rospy.get_time() # ----- Stop Timing
+	elapsed = round((finish - start), 3) # ----- Calculate Time Elapsed
+	print(elapsed, "   Sec.")
+	print("----------", action_type, "----------")
+	print("DESIRED POS:	", action_content)
+	if action_type == "right_arm":
+	    actual_pos = [right_shoulder_pitch_pos, right_shoulder_roll_pos, right_elbow_roll_pos]
+	    print("REAL POS:	", actual_pos)
+	else:
+	    actual_pos = [left_shoulder_pitch_pos, left_shoulder_roll_pos, left_elbow_roll_pos]
+	    print("REAL POS:	", actual_pos)
+	
+	#rospy.sleep(2)
+	# ---------- OFFSET 
+	start = rospy.get_time() # ----- Start Timing
+	action_type = arm
+	action_content = offset
+	command_blocking = False
+
+	rospy.wait_for_service('/qt_command_service')
+	command_controller = rospy.ServiceProxy('/qt_command_service', qt_command)
+	command_complete = command_controller(action_type, action_content, command_blocking)
+	rospy.sleep(0.1)
+        
+	#check_pos(actual_pos,  action_content)
+	#check_pos(actual_pos, offset)
+	finish = rospy.get_time() # ----- Stop Timing
+	elapsed = round((finish - start), 3) # ----- Calculate Time Elapsed
+	print(elapsed, "   Sec.")
+	print(command_complete)
+	print("----------", action_type, "----------")
+	print("DESIRED POS:	", action_content)
+	if action_type == "right_arm":
+	    actual_pos = [right_shoulder_pitch_pos, right_shoulder_roll_pos, right_elbow_roll_pos]
+	    print("REAL POS:	", actual_pos)
+	else:
+	    actual_pos = [left_shoulder_pitch_pos, left_shoulder_roll_pos, left_elbow_roll_pos]
+	    print("REAL POS:	", actual_pos)
+	    
+	#rospy.sleep(2)
+
+# ----- home to test
+def go_home(arm, pose):
+	start = rospy.get_time() # ----- Start Timing
+	action_type = arm
+	action_content = pose
+	command_blocking = False
+
+	rospy.wait_for_service('/qt_command_service')
+	command_controller = rospy.ServiceProxy('/qt_command_service', qt_command)
+	command_complete = command_controller(action_type, action_content, command_blocking)
+	rospy.sleep(0.1)
+	print(command_complete)
+	finish = rospy.get_time() # ----- Stop Timing
+	elapsed = round((finish - start), 3) # ----- Calculate Time Elapsed
+	print(elapsed, "   Sec.")
+	print("----------", action_type, "----------")
+	print("DESIRED POS:	", action_content)
+	if action_type == "right_arm":
+	    actual_pos = [right_shoulder_pitch_pos, right_shoulder_roll_pos, right_elbow_roll_pos]
+	    print("REAL POS:	", actual_pos)
+	else:
+	    actual_pos = [left_shoulder_pitch_pos, left_shoulder_roll_pos, left_elbow_roll_pos]
+	    print("REAL POS:	", actual_pos)
+
+# --------------------------- RECORD USER MELODY
+'''
+def record_melody(rec_length):
+	CHUNK = 1024
+	FORMAT = pyaudio.paInt16
+	CHANNELS = 1
+	RATE = 22050 #44100
+
+	p =pyaudio.PyAudio()
+
+	stream = p.open(format=FORMAT,
+		        channels=CHANNELS,
+		        rate=RATE,
+		        input=True,
+		        frames_per_buffer=CHUNK)
+
+	print("Start Recording ...")
+	frames = []
+	seconds = rec_length
+	for i in range(0, int(RATE/ CHUNK * seconds)):
+	    data = stream.read(CHUNK)
+	    frames.append(data)
+
+	print("Recording Stopped.")
+	stream.stop_stream()
+	stream.close()
+	p.terminate()
+
+
+	wf = wave.open("User_Melody.wav", 'wb')
+	wf.setnchannels(CHANNELS)
+	wf.setsampwidth(p.get_sample_size(FORMAT))
+	wf.setframerate(RATE)
+	wf.writeframes(b''.join(frames))
+	wf.close()
+
+# --------------------------- SLICE MELODY BY NOTE DETECTED
+
+def trim_song_by_notes(raw, note_db, trim_samples):
+    onset_env = librosa.onset.onset_strength(y = raw, sr=sr, S = note_db)
+    peaks = librosa.util.peak_pick(onset_env,pre_max=2, post_max=2, pre_avg=3, post_avg=5, delta=3.0, wait=10)
+
+
+    #print(len(raw)) #340452
+    #print(peaks) #[ 45 119 192 264 337 406 478 554]
+    #print(len(onset_env)) #665
+    peaks_raw = []
+
+    env_len = len(onset_env)
+    raw_len = len(raw)
+    for p in peaks:
+        prop = round((p*raw_len)/env_len) - 1000 # - 1000 because without, it trims out part of the next note/begin of same note
+        prop = int(prop)
+        peaks_raw.append(prop)
+    print(peaks_raw)
+
+    for i in range(len(peaks_raw) - 1):
+        start = peaks_raw[i]
+        end = peaks_raw[i+1]
+        print(start, end)
+        segment = raw[start:end]
+        #plot_wave(segment)
+        trim_samples.append(segment)
+
+    # Add the last segment (from the last peak to the end of the array)
+    trim_samples.append(raw[peaks_raw[-1]:])
+    #plot_wave(raw)
+    return trim_samples
+
+# ---------------------------------------------- VARIABLES
+
+#--------------------- MOTOR ANGLES TO HIT KEYS
+
+# Home Positions
+Home_r = "[43.0, -21.5, -48.900001525878906]" #[-87.0, -86.30000305175781, -7.400000095367432]
+Home_l = "[-43.0, -21.5, -48.900001525878906]"
+
+
+#---------------------------------------- RIGHT ARM ----------------------------------------
+# ------------------- Sending right arm to 'Get Ready' position
+r_pose1 = "[-56.29999923706055, -26.700000762939453, 0.6000000238418579]"
+r_pose2 = "[60.599998474121094, -26.399999618530273, 0.6000000238418579]"
+r_pose3 = "[33.900001525878906, -26.399999618530273, -73.5999984741211]"
+
+
+# ---------------------------------------- LEFT ARM ----------------------------------------
+# ------------------- Sending left arm to 'Get Ready' position
+l_pose1 = "[56.29999923706055, -26.700000762939453, 0.6000000238418579]"
+l_pose2 = "[-60.599998474121094, -26.399999618530273, 0.6000000238418579]"
+l_pose3 = "[-33.900001525878906, -26.399999618530273, -73.5999984741211]"
+
+
+#---------------------------------------NOTES & OFFSETS -------------------------------------
+
+Notes = {
+    "offset_C_Root": "[-32.699999809265137, -36.099998474121094, -62.900001525878906]",
+    "C_Root": "[-20.699999809265137, -36.099998474121094, -62.900001525878906]",
+    "offset_D": "[-33.0, -46.599998474121094, -58.0]",
+    "D": "[-20.0, -46.599998474121094, -58.0]",
+    "offset_E": "[-33.300000190734863, -57.29999923706055, -53.5]",
+    "E": "[-20.300000190734863, -57.29999923706055, -53.5]",
+    "offset_F": "[-33.0, -71.69999694824219, -43.70000076293945]",
+    "F": "[-20.0, -71.69999694824219, -43.70000076293945]",
+    "offset_C_First_Inv": "[35.300000190734863, -40.70000076293945, -55.79999923706055]",
+    "C_First_Inv": "[22.300000190734863, -40.70000076293945, -55.79999923706055]",
+    "offset_B": "[32.699999809265137, -47.5, -54.5]",
+    "B": "[20.699999809265137, -47.5, -54.5]",
+    "offset_A": "[32.300000190734863, -60.599998474121094, -46.599998474121094]",
+    "A": "[20.300000190734863, -60.599998474121094, -46.599998474121094]",
+    "offset_G": "[32.0, -73.0, -38.5]",
+    "G": "[20.0, -73.0, -38.5]"
+}
+
+# -------- ML MODEL AND MELODY PATHS
+
+model_path = "/home/ez/catkin_ws/src/tutorial_qt_motors/src/scripts/ML_KNN_dB_Model.joblib"
+#model_path = "/home/qtrobot/catkin_ws/src/tutorial_qt_motors/src/scripts/ML_KNN_dB_Model.joblib"
+#model_path = '/home/qtrobot/catkin_ws/src/tutorial_qt_motors/src/scripts/ML_KNN_dB_Model.joblib'
+
+#melody = '/home/ez/catkin_ws/src/tutorial_qt_motors/src/scripts/User_Melody.wav'
+melody = '/home/ez/User_Melody.wav'
+#melody = '/home/qtrobot/catkin_ws/src/tutorial_qt_motors/src/scripts/'
+
+# ---------- LISTS
+trim_samples = []
+ml_audio_data = []
+
+# --------------------- MAIN SCRIPT
+
+# RECORD USER MELODY
+
+record_melody(15) # 15
+
+
+#######################################
+
+#get_ready("right_arm", r_pose1, r_pose2, r_pose3)
+#get_ready("left_arm",  l_pose1, l_pose2, l_pose3)
+
+raw, sr = librosa.load(melody) # Load melody with Librosa
+
+note_ft = librosa.stft(raw) # STFT of raw melody
+note_db = librosa.amplitude_to_db(np.abs(note_ft), ref = np.max) # Convert to dB
+
+trim_song_by_notes(raw, note_db, trim_samples) # Slice song to predict each note separately
+
+for trimmed in trim_samples:
+    ft = librosa.stft(trimmed) # Short-time Fourier transform
+    ft_db = librosa.amplitude_to_db(np.abs(ft), ref = np.max)
+    ft_average = np.mean(np.abs(ft_db), axis = 1)
+    ml_audio_data.append(ft_average)
+
+
+ml_audio_data = np.array(ml_audio_data)
+
+# MELODY LABELS ( for testing only )
+# labels = ["C_Root", "D", "E", "F", "G", "A", "B", "C_First_Inv",]
+
+X_test = ml_audio_data
+#y_test = labels
+
+load_model = joblib.load(model_path)
+
+prediction = load_model.predict(X_test)
+print(prediction)
+'''
+score = load_model.score(X_test, y_test)
+print("-- Accuracy:     ", score*100, '%')
+
+for h in range(len(prediction)):
+    print(prediction[h], y_test[h])
+'''
+
+print("-- PROCESS TIME CPU:    ", time.process_time())
+
+'''
+for note in prediction:
+    if note in ["C_First_Inv", "B", "A", "G"]:
+        
+        arm = "right_arm"
+        offset = Notes[f"offset_{note}"]
+    else:
+        
+        arm = "left_arm"
+        offset = Notes[f"offset_{note}"]
+    note = Notes[f"{note}"]
+    play_note(arm, note, offset)
+    
+go_home('right_arm', Home_r)
+go_home('left_arm', Home_l)'''
+
+# -------------------- PLAY ALL NOTES (used for testing position accuracy)
+'''
+#change_mot_speed("100")
+#start = rospy.get_time()
+#get_ready("right_arm", r_pose1, r_pose2, r_pose3)
+#get_ready("left_arm",  l_pose1, l_pose2, l_pose3)
+
+play_note("right_arm", C_FI, offset_C_FI)
+play_note("right_arm", B, offset_B)
+play_note("right_arm", A, offset_A)
+play_note("right_arm", G, offset_G)
+
+play_note("left_arm", C_R, offset_C_R)
+play_note("left_arm", D, offset_D)
+play_note("left_arm", E, offset_E)
+play_note("left_arm", F, offset_F)
+#finish = rospy.get_time()
+#elapsed = round((finish - start), 3)
+#print("TIME TO PLAY ALL KEYS:    ", elapsed, "   Sec.")
+'''
+
+'''
+variable_name = f'{C_R=}'.split('=')[0]
+offset = "offset_"+ variable_name
+print(offset)
+'''
+

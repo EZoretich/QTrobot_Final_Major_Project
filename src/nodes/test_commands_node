@@ -1,0 +1,50 @@
+#!/usr/bin/env python
+#File to mimic the interface of command node, so that we dont need robot on to code and test code.
+
+import rospy
+import time
+from musi_care.srv import qt_command
+#from qt_robot_interface.srv import * #so we can use the qt service srvs
+#from qt_gesture_controller.srv import * # #so we can use the service srv "gesture_play" 
+from std_msgs.msg import String #so we can become a publisher and publish a string to the QT node that handles tts.
+
+def wait_for_command():
+    """main code that runs and waits for a message """
+    rospy.init_node('qt_command_node')
+    rospy.loginfo("QT Command Node has been launched")
+    s = rospy.Service('qt_command_service', qt_command, perform_command) 
+    rospy.spin() #Keep code running
+    
+    
+    
+def perform_command(message):
+    "Callback response, it is really just to help the flow of the code, also handles tts."
+    if message.action_type == "tts":  #If we get a TTS request then handle it upfront, it need not be searched for.
+        rospy.loginfo("Finished requested TTS message")
+        #put code here? --> later on, so u don;t have 2 codes
+
+        return True
+        
+    if message.action_type == "right_arm":  #If we get a TTS request then handle it upfront, it need not be searched for.
+        rospy.loginfo("Finished requested right arm message")
+        
+        #put code here? --> later on, so u don;t have 2 codes
+
+        return True
+        
+    if message.action_type == "left_arm":  #If we get a TTS request then handle it upfront, it need not be searched for.
+        rospy.loginfo("Finished requested left arm message")
+        #put code here? --> later on, so u don;t have 2 codes
+
+        return True
+        
+        
+        
+    if message.action_type == 'velocity':
+        rospy.loginfo("Changing speed of motors")
+        
+        return True
+        
+        
+if __name__ == "__main__":
+    wait_for_command()
